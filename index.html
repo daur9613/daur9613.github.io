@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Тестирование</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden; /* Запрещаем прокрутку страницы */
+      }
+
+      .second-screen {
+        display: none; /* Изначально скрываем вторую экран */
+        height: 100vh; /* Высота на весь экран */
+      }
+
+      .sidebar-image {
+        top: 0;
+        left: 0;
+        width: 50%; /* Ширина картинки 50% */
+        height: 100vh; /* Высота картинки на весь экран */
+        background: url("test.png");
+        background-size: contain;
+        background-repeat: no-repeat;
+        position: fixed; /* Фиксируем картинку при прокрутке */
+      }
+
+      .content {
+        margin-left: 50%;
+        width: 50%;
+        padding: 20px; /* Добавляем отступы для удобства */
+        overflow-y: auto; /* Позволяем прокручивать содержимое вправо */
+        height: 100vh; /* Высота контента на весь экран */
+      }
+
+      .timer {
+        position: absolute;
+        top: 10px; /* Располагаем таймер в верхней части */
+        left: 48%; /* Центрируем таймер по горизонтали */
+        transform: translateX(
+          -50%
+        ); /* Сдвигаем таймер на половину ширины для центрирования */
+        font-size: 24px;
+        font-weight: bold;
+        z-index: 999; /* Устанавливаем таймер поверх остальных элементов */
+        color: black; /* Цвет текста таймера для лучшей видимости */
+      }
+
+      .form-check {
+        border: 2px solid #007bff; /* Изменение границы при наведении */
+        border-radius: 5px; /* Закругление углов */
+        margin-bottom: 15px; /* Отступ между чекбоксами */
+        transition: border 0.3s; /* Плавный переход при наведении */
+      }
+
+      .form-check:hover {
+        background-color: rgba(0, 123, 255, 0.1); /* Легкое затемнение фона */
+      }
+
+      .form-check-input:checked + .form-check-label {
+        color: #007bff; /* Цвет текста при выборе */
+        font-weight: bold; /* Жирный текст при выборе */
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <div class="first-screen container">
+        <h1 class="text-center">Тестирование</h1>
+        <h2 class="text-center">У вас есть 30 минут</h2>
+
+        <div class="form-group">
+          <label for="fio">ФИО:</label>
+          <input
+            type="text"
+            id="fio"
+            class="form-control"
+            placeholder="Введите ФИО"
+            required />
+        </div>
+        <div class="form-group">
+          <label for="email">Email:</label>
+          <input
+            type="email"
+            id="email"
+            class="form-control"
+            placeholder="Введите Email"
+            required />
+        </div>
+        <div class="text-center mt-4">
+          <button type="button" id="start-test" class="btn btn-primary">
+            Начать тест
+          </button>
+        </div>
+      </div>
+
+      <div class="second-screen">
+        <div class="sidebar-image"></div>
+        <div class="timer" id="timer">30:00</div>
+        <div class="content">
+          <form id="test-form">
+            <div id="questions-container"></div>
+            <div class="text-center mt-4">
+              <button type="submit" class="btn btn-primary">
+                Отправить ответы
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      $(document).ready(function () {
+        let baseUrl = "https://bd55-5-76-205-251.ngrok-free.app"; // https://bd55-5-76-205-251.ngrok-free.app
+        let timerDuration = 1800; // 30 минут в секундах
+        let timer;
+        let user_id = 0;
+
+        // Функция запуска таймера
+        function startTimer() {
+          timerDuration = 30 * 60; // 30 минут в секундах
+
+          timer = setInterval(function () {
+            let minutes = Math.floor(timerDuration / 60);
+            let seconds = timerDuration % 60;
+
+            // Форматируем секунды
+            if (seconds < 10) seconds = "0" + seconds;
+
+            $("#timer").text(minutes + ":" + seconds); // Обновляем отображение таймера
+
+            if (--timerDuration < 0) {
+              clearInterval(timer);
+              formsend(); // Отправка результатов при окончании времени
+            }
+          }, 1000);
+        }
+
+        $("#start-test").on("click", function (event) {
+          event.preventDefault(); // Предотвращаем отправку формы
+
+          const fio = $("#fio").val();
+          const email = $("#email").val();
+
+          if (fio && email) {
+            $.ajax({
+              url: baseUrl + "/start_test",
+              method: "POST",
+              contentType: "application/json",
+              data: JSON.stringify({ fio: fio, email: email }),
+              success: function (response) {
+                if (response && response.id && response.questions) {
+                  user_id = response.id;
+                  let questions = response.questions;
+                  let questionHtml = "";
+                  questions.forEach(function (question, index) {
+                    questionHtml += `<div class="question">
+                                                <h4>${index + 1}. ${
+                      question.text
+                    }</h4>
+                                                    ${question.answers
+                                                      .map(
+                                                        (answer, i) => `
+                                                    <div class="form-check">
+                                                        <input 
+                                                            class="form-check-input" 
+                                                            type="radio" 
+                                                            name="question${question.id}" 
+                                                            value="${answer}" 
+                                                            id="answer${question.id}_${i}" 
+                                                            required />
+                                                        <label class="form-check-label" for="answer${question.id}_${i}">
+                                                            ${answer}
+                                                        </label>
+                                                    </div>`,
+                                                      )
+                                                      .join("")}
+                                            </div>`;
+                  });
+                  $("#questions-container").html(questionHtml);
+                  $(".first-screen").hide(); // Скрываем первую страницу
+                  $(".second-screen").css("display", "flex");
+                  $(".second-screen").css("flex-direction", "row");
+                  startTimer();
+                  alert("Тест начат"); // Показать сообщение после перехода
+                } else {
+                  alert("Ошибка: неверный ответ от сервера.");
+                }
+              },
+              error: function (jqXHR, textStatus, errorThrown) {
+                console.error("Error starting test:", textStatus, errorThrown);
+                alert(
+                  "Не удалось начать тест. Пожалуйста, проверьте данные и попробуйте снова.",
+                );
+              },
+            });
+          } else {
+            alert("Пожалуйста, заполните все поля.");
+          }
+        });
+
+        function formsend() {
+          const answers = $("#test-form")
+            .serializeArray()
+            .map(answer => ({
+              question_id: parseInt(answer.name.replace("question", "")),
+              selected_answer: answer.value,
+            }));
+
+          $.ajax({
+            url: baseUrl + "/api/submit_answers",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ user_id: user_id, answers: answers }),
+            success: function (response) {
+              clearInterval(timer);
+              alert(response.message + ". Ваш балл: " + response.score);
+            },
+            error: function (xhr) {
+              alert("Ошибка: " + xhr.responseJSON.message);
+            },
+          });
+        }
+
+        $("#test-form").on("submit", function (e) {
+          e.preventDefault();
+          formsend();
+        });
+      });
+    </script>
+  </body>
+</html>
